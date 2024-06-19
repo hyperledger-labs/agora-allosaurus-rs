@@ -224,8 +224,8 @@ impl From<NonMembershipWitness> for (G1Projective, Scalar) {
     }
 }
 
-impl fmt::Display for NonMembershipWitness {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for NonMembershipWitness {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "NonMembershipWitness {{ c: {}, d: {} }}", self.c, self.d)
     }
 }
