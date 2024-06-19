@@ -1,7 +1,8 @@
-use accumulator::{Accumulator, Coefficient, Element, MembershipWitness, PublicKey, SecretKey};
-use blsful::inner_types::{G1Projective, G2Projective, Scalar};
-use group::GroupEncoding;
-use rand_core::SeedableRng;
+use agora_allosaurus_rs::accumulator::{
+    Accumulator, Coefficient, Element, MembershipWitness, PublicKey, SecretKey,
+};
+use blsful::inner_types::*;
+use rand::SeedableRng;
 use rayon::prelude::*;
 use serde::{Serialize, Serializer};
 use std::collections::{HashMap, HashSet};
@@ -10,7 +11,7 @@ use uint_zigzag::Uint;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use allosaur::{AccParams, PublicKeys, Server, User, UserID};
+use agora_allosaurus_rs::{AccParams, PublicKeys, Server, User, UserID, UserUpdate};
 
 //-------BENCHMARK PARAMETERS ------//
 
@@ -91,7 +92,7 @@ fn single_server(c: &mut Criterion) {
                 deletions: deletion.to_vec().clone(),
                 deltas: deltas[i].clone(),
             };
-            message_length += serde_cbor::to_vec(&server_message).unwrap().len();
+            message_length += serde_bare::to_vec(&server_message).unwrap().len();
         }
         println!(
             "Single-server server->user message size {} bytes",
@@ -155,7 +156,7 @@ fn batch_update(c: &mut Criterion) {
         };
         println!(
             "Batch update server->user message size {} bytes",
-            serde_cbor::to_vec(&server_message).unwrap().len()
+            serde_bare::to_vec(&server_message).unwrap().len()
         );
 
         // Benchmarks user response
@@ -190,24 +191,12 @@ fn allosaur_update(c: &mut Criterion) {
             sign_key: public_key_s,
         };
 
-        let mut rng = rand_chacha::ChaChaRng::from_seed([1u8; 32]);
-
-        let accumulator = Accumulator::random(&mut rng);
+        let accumulator = Accumulator::random();
         let acc_params = AccParams::default();
 
         // Generates users with valid witnesses using the secret
         let users: Vec<User> = (0..USERS)
-            .map(|_| {
-                User::random(
-                    &alpha,
-                    &s,
-                    acc_params,
-                    accumulator,
-                    public_keys,
-                    1,
-                    &mut rng,
-                )
-            })
+            .map(|_| User::random(&alpha, &s, acc_params, accumulator, public_keys, 1))
             .collect();
 
         // Gets all the user witnesses to give to the servers
@@ -224,7 +213,7 @@ fn allosaur_update(c: &mut Criterion) {
         let mut servers: Vec<Server> = (0..SHARES)
             .map(|_| Server {
                 accumulators: vec![accumulator],
-                wit_secret_key: alpha.clone(),
+                witness_secret_key: alpha.clone(),
                 public_keys,
                 sign_secret_key: s.clone(),
                 all_users: all_users.clone(),
@@ -236,7 +225,7 @@ fn allosaur_update(c: &mut Criterion) {
         // Step 1 - remove a user from the accumulator which triggers an update
         servers.par_iter_mut().for_each(|s| {
             for u in &users[..num_dels] {
-                let _ = s.quick_del(u.id).unwrap();
+                let _ = s.quick_delete(u.id).unwrap();
             }
         });
 
@@ -244,14 +233,18 @@ fn allosaur_update(c: &mut Criterion) {
         let user = users[num_dels].clone();
         c.bench_function("ALLOSAUR user-side pre-update", |b| {
             b.iter(|| {
-                user.pre_update(servers[0].get_epoch(), SHARES, THRESHOLD)
+                user.prepare_for_update(servers[0].get_epoch(), SHARES, THRESHOLD)
                     .unwrap();
             })
         });
 
         // Compute the actual pre-update data
-        let (user_d, user_shares, user_values) = user
-            .pre_update(servers[0].get_epoch(), SHARES, THRESHOLD)
+        let UserUpdate {
+            epoch_diff: user_d,
+            y_shares: user_shares,
+            y_values: user_values,
+        } = user
+            .prepare_for_update(servers[0].get_epoch(), SHARES, THRESHOLD)
             .unwrap();
 
         // Get the length of the data the user must send to each server
@@ -262,7 +255,7 @@ fn allosaur_update(c: &mut Criterion) {
         // Print the length of data sent to *all* servers
         println!(
             "ALLOSAUR user 1 user->server message size {} bytes",
-            serde_cbor::to_vec(&user_server_message).unwrap().len() * SHARES
+            serde_bare::to_vec(&user_server_message).unwrap().len() * SHARES
         );
 
         // Benchmark the server side, for only one server
@@ -283,7 +276,7 @@ fn allosaur_update(c: &mut Criterion) {
         // Print the length of data sent from *all* servers
         println!(
             "ALLOSAUR user 1 server->user message size {} bytes",
-            serde_cbor::to_vec(&server_user_message).unwrap().len() * SHARES
+            serde_bare::to_vec(&server_user_message).unwrap().len() * SHARES
         );
 
         // Benchmark the user's computation on the resulting data
@@ -319,7 +312,7 @@ impl Serialize for UserUpdateMessage {
         output.append(&mut Uint::from(self.epoch).to_vec());
         output.append(&mut Uint::from(self.shares.len()).to_vec());
         for s in &self.shares {
-            output.extend_from_slice(&s.to_bytes());
+            output.extend_from_slice(&s.to_be_bytes());
         }
         serializer.serialize_bytes(&output)
     }
@@ -339,11 +332,11 @@ impl Serialize for ServerUpdateMessage {
         let mut output = Vec::with_capacity(64);
         output.append(&mut Uint::from(self.d_poly.len()).to_vec());
         for s in &self.d_poly {
-            output.extend_from_slice(&s.to_bytes());
+            output.extend_from_slice(&s.to_be_bytes());
         }
         output.append(&mut Uint::from(self.v_poly.len()).to_vec());
         for s in &self.v_poly {
-            output.extend_from_slice(&s.to_bytes().as_ref());
+            output.extend_from_slice(&s.to_compressed());
         }
         serializer.serialize_bytes(&output)
     }
@@ -364,15 +357,15 @@ impl Serialize for VBUpdateMessage {
         let mut output = Vec::with_capacity(64);
         output.append(&mut Uint::from(self.additions.len()).to_vec());
         for s in &self.additions {
-            output.extend_from_slice(&s.0.to_bytes());
+            output.extend_from_slice(&s.0.to_be_bytes());
         }
         output.append(&mut Uint::from(self.deletions.len()).to_vec());
         for s in &self.deletions {
-            output.extend_from_slice(&s.0.to_bytes());
+            output.extend_from_slice(&s.0.to_be_bytes());
         }
         output.append(&mut Uint::from(self.deltas.len()).to_vec());
         for s in &self.deltas {
-            output.extend_from_slice(&s.0.to_bytes().as_ref());
+            output.extend_from_slice(&s.0.to_compressed());
         }
         serializer.serialize_bytes(&output)
     }

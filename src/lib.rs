@@ -25,4 +25,5 @@ mod tests;
 pub mod accumulator;
 pub use servers::*;
 pub use user::*;
+pub use utils::*;
 pub use witness::*;
