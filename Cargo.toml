@@ -1,0 +1,28 @@
+[package]
+authors = ["Michael Lodder <redmike7@gmail.com>", "Hart Montgomery <hart.montgomery@gmail.com>", "Sam Jaques <sejaques@uwaterloo.ca>"]
+description = "An implementation of ALLOSAURUS as described in https://eprint.iacr.org/2022/1362/"
+documentation = "https://docs.rs/agora-allosaurus-rs"
+edition = "2021"
+homepage = "https://github.com/hyperledger-labs/agora-allosaurus-rs"
+keywords = ["crypto", "accumulator", "mpc", "revocation"]
+license-file = "LICENSE"
+name = "agora-allosaurus-rs"
+readme = "README.md"
+repository = "https://github.com/hyperledger-labs/agora-allosaurus-rs"
+version = "0.1.0"
+
+[dependencies]
+blsful = "2.5"
+merlin = "3.0"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+sha2 = "0.10"
+sha3 = "0.10"
+zeroize = "1.8"
+
+[dev-dependencies]
+serde_bare = "0.5.0"
+
+[[bench]]
+name = "updates"
+harness = false
