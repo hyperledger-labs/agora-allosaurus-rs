@@ -1,8 +1,10 @@
+//! The `accumulator` module provides the necessary tools to create and update an accumulator.
+//! according to VB paper https://eprint.iacr.org/2020/777.pdf
 mod acc;
 mod key;
 mod proof;
 mod proof_message;
-pub mod utils;
+mod utils;
 mod witness;
 
 pub use acc::*;

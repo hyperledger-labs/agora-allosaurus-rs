@@ -2,6 +2,7 @@ use super::{
     utils::{generate_fr, hash_to_g1, SALT},
     Accumulator, Element, MembershipWitness, NonMembershipWitness, ProofMessage, PublicKey,
 };
+use crate::utils::{g1, sc};
 use blsful::inner_types::*;
 use merlin::Transcript;
 use serde::{Deserialize, Serialize};
@@ -344,15 +345,6 @@ impl MembershipProof {
 
     /// Convert a byte representation to a proof
     pub fn from_bytes(input: &[u8; Self::BYTES]) -> Result<Self, &'static str> {
-        let g1 = |b: &[u8]| -> Result<G1Projective, &'static str> {
-            let buf = <[u8; 48]>::try_from(b).map_err(|_| "Proof serialization error")?;
-            Option::<G1Projective>::from(G1Projective::from_compressed(&buf))
-                .ok_or("Proof serialization error")
-        };
-        let sc = |b: &[u8]| -> Result<Scalar, &'static str> {
-            let buf = <[u8; 32]>::try_from(b).map_err(|_| "Proof serialization error")?;
-            Option::<Scalar>::from(Scalar::from_be_bytes(&buf)).ok_or("Proof serialization error")
-        };
         Ok(Self {
             e_c: g1(&input[0..48])?,
             t_sigma: g1(&input[48..96])?,
@@ -793,23 +785,23 @@ fn cap_r(bases: &[G1Projective], scalars: &[Scalar]) -> G1Projective {
     G1Projective::sum_of_products(bases, scalars)
 }
 
-pub fn pair(g1: G1Projective, g2: G2Projective) -> Gt {
+pub(crate) fn pair(g1: G1Projective, g2: G2Projective) -> Gt {
     blsful::inner_types::pairing(&g1.to_affine(), &g2.to_affine())
 }
 
-pub fn pairing(g1: G1Projective, g2: G2Projective, exp: Scalar) -> Gt {
+pub(crate) fn pairing(g1: G1Projective, g2: G2Projective, exp: Scalar) -> Gt {
     let base = g1 * exp;
     blsful::inner_types::pairing(&base.to_affine(), &g2.to_affine())
 }
 
-pub fn schnorr(r: Scalar, v: Scalar, challenge: Scalar) -> Scalar {
+pub(crate) fn schnorr(r: Scalar, v: Scalar, challenge: Scalar) -> Scalar {
     v * challenge + r
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::*;
+    use crate::accumulator::*;
 
     #[test]
     fn serde_round_trip() {

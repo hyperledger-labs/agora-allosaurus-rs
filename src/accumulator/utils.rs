@@ -9,7 +9,11 @@ use sha3::{
 
 /// Similar to https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-04#section-2.3
 /// info is left blank
-pub fn generate_fr(salt: &[u8], ikm: Option<&[u8]>, mut rng: impl RngCore + CryptoRng) -> Scalar {
+pub(crate) fn generate_fr(
+    salt: &[u8],
+    ikm: Option<&[u8]>,
+    mut rng: impl RngCore + CryptoRng,
+) -> Scalar {
     let mut hasher = Shake128::default();
     match ikm {
         Some(v) => {
@@ -29,7 +33,8 @@ pub fn generate_fr(salt: &[u8], ikm: Option<&[u8]>, mut rng: impl RngCore + Cryp
     Scalar::from_bytes_wide(&okm)
 }
 
-pub fn hash_to_g1<I: AsRef<[u8]>>(data: I) -> G1Projective {
+/// Hash to G1
+pub(crate) fn hash_to_g1<I: AsRef<[u8]>>(data: I) -> G1Projective {
     const DST: &[u8] = b"BLS12381G1_XMD:SHA256_SSWU_RO_VB_ACCUMULATOR:1_0_0";
     G1Projective::hash::<ExpandMsgXmd<Sha256>>(data.as_ref(), DST)
 }
