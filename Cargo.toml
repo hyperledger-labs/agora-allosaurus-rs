@@ -21,7 +21,10 @@ sha3 = "0.10"
 zeroize = "1.8"
 
 [dev-dependencies]
+criterion = "0.5"
+rayon = "1.10"
 serde_bare = "0.5.0"
+uint-zigzag = { version = "0.2", features = ["std"] }
 
 [[bench]]
 name = "updates"

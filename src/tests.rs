@@ -1,7 +1,7 @@
 // Runs a suite of tests on the basic ALLOSAUR functionality
 
 use crate::accumulator::{Accumulator, Element, MembershipWitness, PublicKey, SecretKey};
-use crate::{*, utils::*};
+use crate::{utils::*, *};
 use blsful::inner_types::*;
 use rand::RngCore;
 

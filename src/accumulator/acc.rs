@@ -5,7 +5,7 @@ use super::{
 };
 use blsful::inner_types::*;
 use core::fmt::{self, Display, Formatter};
-use rand::{CryptoRng, RngCore};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -150,9 +150,9 @@ impl Accumulator {
     pub const BYTES: usize = 48;
 
     /// Create a random accumulator
-    pub fn random(mut rng: impl RngCore + CryptoRng) -> Self {
+    pub fn random() -> Self {
         let mut buffer = [0u8; 64];
-        rng.fill_bytes(&mut buffer);
+        rand::rngs::OsRng.fill_bytes(&mut buffer);
         Self(hash_to_g1(buffer))
     }
 

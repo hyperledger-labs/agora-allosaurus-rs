@@ -10,13 +10,20 @@ use std::collections::{HashMap, HashSet};
 /// An ALLOSAUR server
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Server {
-    pub(crate) accumulators: Vec<Accumulator>,
-    pub(crate) wit_secret_key: SecretKey,  // alpha
-    pub(crate) public_keys: PublicKeys,    // \tilde{Q}, \tilde{Q}_m
-    pub(crate) sign_secret_key: SecretKey, // s_m
-    pub(crate) all_users: HashSet<UserID>, // \mathcal{Y}
-    pub(crate) all_witnesses: HashMap<UserID, MembershipWitness>, // wits
-    pub(crate) deletions: Vec<UserID>,     // list of deletions y_1,...,y_d
+    /// The managed accumulators
+    pub accumulators: Vec<Accumulator>,
+    /// The witness update secret key a.k.a alpha
+    pub witness_secret_key: SecretKey,
+    /// The public keys for the server \tilde{Q}, \tilde{Q}_m
+    pub public_keys: PublicKeys,
+    /// The signing secret key for the server s_m
+    pub sign_secret_key: SecretKey,
+    /// The set of managed UserIDs \mathcal{Y}
+    pub all_users: HashSet<UserID>,
+    /// The set of all witnesses
+    pub all_witnesses: HashMap<UserID, MembershipWitness>,
+    /// The list of deletions y_1,...,y_d
+    pub deletions: Vec<UserID>,
 }
 
 impl Server {
@@ -29,7 +36,7 @@ impl Server {
         let v = params.get_p1() * SecretKey::new(None).0;
         Server {
             accumulators: vec![Accumulator(v)],
-            wit_secret_key: alpha,
+            witness_secret_key: alpha,
             sign_secret_key: s_m,
             public_keys: PublicKeys {
                 witness_key: PublicKey(q),
@@ -50,7 +57,8 @@ impl Server {
         self.all_users.insert(y);
         // Create a new witness
         let wit = MembershipWitness(
-            self.accumulators.last().unwrap().0 * (y.0 + self.wit_secret_key.0).invert().unwrap(),
+            self.accumulators.last().unwrap().0
+                * (y.0 + self.witness_secret_key.0).invert().unwrap(),
         );
         // Keep track of all witnesses
         self.all_witnesses.insert(y, wit);
@@ -96,7 +104,7 @@ impl Server {
 
         let new_accumulator = Accumulator(
             self.accumulators.last().expect("at least one element").0
-                * (y.0 + self.wit_secret_key.0)
+                * (y.0 + self.witness_secret_key.0)
                     .invert()
                     .expect("to not be zero"),
         );
